@@ -251,9 +251,10 @@ function renderEditor(){if(!draft)return;editorSection=Math.max(0,Math.min(secti
 const openCards=new Set();
 const refLabel=x=>x.id+' · '+(x.name||x.title||'sans nom');
 const evidenceTypes=['Document','Message','Témoignage','Déclaration','Objet','Trace','Photo','Facture','Chronologie'];
-const sceneCfg={prefix:'s',one:'scène',fem:true,title:x=>x.title,blank:()=>({title:'',text:''}),fields:[
+const sceneCfg={prefix:'s',one:'scène',fem:true,title:x=>x.title,sub:x=>list(x.clues).length?list(x.clues).length+' indice(s) déclenché(s)':'',blank:()=>({title:'',text:'',clues:[]}),fields:[
  {k:'title',label:'Titre de la scène'},
- {k:'text',label:'Texte',type:'textarea',tall:true}]};
+ {k:'text',label:'Texte',type:'textarea',tall:true},
+ {k:'clues',label:'Indices débloqués quand le joueur lit cette scène',type:'refs',src:'evidence'}]};
 const questionCfg={prefix:'q',one:'question',fem:true,title:x=>x.question,blank:()=>({question:'',answer:'',choices:[],consequences:'',clue:''}),fields:[
  {k:'question',label:'Question posée'},
  {k:'clue',label:'Indice révélé par la réponse',type:'ref',src:'evidence'},
@@ -452,7 +453,7 @@ function renderReader(){const c=readerCase,s=readerState,names=readerSectionName
  host.replaceChildren();add(host,'p','DOSSIER / '+String(readerStep+1).padStart(2,'0'),'eyebrow mb-3');add(host,'h2',names[readerStep],'mb-5');
  const chapterCount=list(c.chapters).length;
  if(readerStep===0){add(host,'p',c.prologue||c.synopsis||'Le dossier est en cours de rédaction.','reader-text');add(host,'p','Explorez les chapitres, les lieux et les preuves avant de présenter votre conclusion.','muted mt-5')}
- else if(readerStep<=chapterCount){list(c.chapters[readerStep-1].scenes).forEach(scene=>{add(host,'h3',scene.title||'Scène','mt-6 mb-2');add(host,'p',scene.text||'','reader-text')})}
+ else if(readerStep<=chapterCount){const chapter=c.chapters[readerStep-1];list(chapter.scenes).forEach(scene=>{add(host,'h3',scene.title||'Scène','mt-6 mb-2');add(host,'p',scene.text||'','reader-text');list(c.evidence).filter(e=>list(scene.clues).includes(e.id)).forEach(e=>{const fresh=!s.seen.has(e.id);s.seen.add(e.id);const card=add(host,'button',undefined,'pick-card picked w-full text-left mt-4');card.type='button';if(e.image){const im=add(card,'img',undefined,'pick-thumb');im.src=e.image;im.alt=''}const t=add(card,'span',undefined,'min-w-0');add(t,'span',fresh?'NOUVEL INDICE · AJOUTÉ AU CARNET':'INDICE DU CARNET','eyebrow block mb-1');add(t,'strong',e.title||e.id,'block');add(t,'span',e.image?'Cliquez pour examiner la photo à la loupe.':'Cliquez pour examiner la pièce.','muted text-sm block mt-1');card.addEventListener('click',()=>inspect({id:'scene-'+scene.id,name:chapter.title||'Chapitre'},{label:scene.title||'Scène',clue:e.id},0))})})}
  else{const extra=readerStep-chapterCount-1;
   if(extra===0){list(c.characters).forEach(p=>{const box=add(host,'section',undefined,'border-t border-[#393736] py-4');if(p.image){const img=add(box,'img',undefined,'portrait-img mb-3');img.src=p.image;img.alt='Portrait de '+(p.name||'personnage');img.loading='lazy'}add(box,'h3',p.name||'Personnage');add(box,'p',(p.role||'Rôle à préciser')+' · Alibi : '+(p.alibi||'Non précisé'),'muted mt-2');if(p.portrait)add(box,'p',p.portrait,'text-sm mt-2')})}
   if(extra===1){const grid=add(host,'div',undefined,'grid gap-6');list(c.locations).forEach(l=>{renderSearchScene(grid,c,l);s.visited.add(l.id)})}
