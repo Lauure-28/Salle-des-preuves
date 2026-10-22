@@ -1,0 +1,7 @@
+# Fichiers temporaires de Python
+__pycache__/
+*.pyc
+
+# Données locales : enquêtes enregistrées et images envoyées
+enquetes.json
+static/uploads/
