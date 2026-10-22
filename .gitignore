@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 
-# Données locales : enquêtes enregistrées et images envoyées
+# Données locales : base SQLite, anciennes enquêtes et images envoyées
+salle_des_preuves.db
 enquetes.json
 static/uploads/
