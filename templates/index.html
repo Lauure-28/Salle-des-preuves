@@ -372,14 +372,14 @@ function closeInspect(){$('inspect-overlay')?.classList.add('hidden')}
 function inspect(l,pt,k){const c=readerCase,s=readerState,e=list(c.evidence).find(x=>x.id===pt.clue),o=inspectOverlay();s.examined.add(l.id+'#'+k);o.replaceChildren();
  const panel=add(o,'div',undefined,'panel p-5 md:p-7 max-w-2xl w-full max-h-[92vh] overflow-auto');panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-labelledby','inspect-title');
  add(panel,'p',(l.name||'Décor')+' / '+(pt.label||'Objet'),'eyebrow mb-3');
- if(e){const already=s.seen.has(e.id);
+ if(e){const already=s.seen.has(e.id);s.seen.add(e.id);
   if(e.image){const frame=add(panel,'div',undefined,'inspect-frame mb-4');const img=add(frame,'img',undefined,'inspect-img');img.src=e.image;img.alt=e.title||'';frame.addEventListener('mousemove',ev=>{const r=frame.getBoundingClientRect();img.style.transformOrigin=((ev.clientX-r.left)/r.width*100)+'% '+((ev.clientY-r.top)/r.height*100)+'%'});frame.addEventListener('click',()=>frame.classList.toggle('zoomed'));add(panel,'p','Cliquez sur la photo pour l’examiner à la loupe.','muted text-xs mb-3')}
   const h=add(panel,'h2',e.title||'Indice','mb-2');h.id='inspect-title';add(panel,'p',e.description||'','reader-text');
   const actions=add(panel,'div',undefined,'flex flex-wrap justify-end gap-2 mt-6');actions.append(button('Fermer',closeInspect));
-  if(already)add(actions,'span','✓ Déjà dans votre carnet','badge self-center');else actions.append(button('Ajouter au carnet',()=>{s.seen.add(e.id);closeInspect();renderReader();message('« '+(e.title||e.id)+' » ajouté au carnet de déduction.')},'btn primary'))}
+  add(actions,'span',already?'✓ Déjà dans votre carnet':'✓ Ajouté à votre carnet','badge self-center order-first mr-auto')}
  else{const h=add(panel,'h2',pt.label||'Rien ici','mb-2');h.id='inspect-title';add(panel,'p','Vous examinez attentivement… rien de particulier.','muted');const actions=add(panel,'div',undefined,'flex justify-end mt-6');actions.append(button('Fermer',closeInspect))}
  o.classList.remove('hidden');panel.querySelector('button')?.focus();renderReader()}
-function pointFound(l,pt,k){const s=readerState;return pt.clue?s.seen.has(pt.clue):s.examined.has(l.id+'#'+k)}
+function pointFound(l,pt,k){const s=readerState;return s.examined.has(l.id+'#'+k)||!!pt.clue&&s.seen.has(pt.clue)}
 function renderSearchScene(host,c,l){const box=add(host,'section',undefined,'panel overflow-hidden');const points=list(l.points);let img=null;const scene=node('div',undefined,'search-scene');
  if(l.image){img=add(scene,'img',undefined,'search-img');img.src=l.image;img.alt=l.alt||l.name||'';img.loading='lazy'}
  else if(c===pilot&&l.scene){const original=document.querySelector('.hidden[aria-hidden="true"] [data-template-id="'+l.scene+'"]');if(original){img=original.cloneNode(true);img.className='canva-image search-img';scene.append(img)}}
