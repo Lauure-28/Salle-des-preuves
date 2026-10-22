@@ -232,66 +232,121 @@ function updateChecklist(){if(!draft)return;const a=checks(draft),ul=$('checklis
 function saveIndicator(text){$('save-state').textContent=text}
 function markDirty(){if(!draft)return;dirty=true;revision++;saveIndicator('Modifications non enregistrées');updateChecklist();clearTimeout(autoTimer);autoTimer=setTimeout(()=>saveDraft(false),1800)}
 function field(parent,id,label,value,change,kind='input',options){const wrap=add(parent,'div');const lab=add(wrap,'label',label);lab.htmlFor=id;const el=add(wrap,kind,undefined,'field');el.id=id;if(options)options.forEach(o=>el.append(new Option(o,o)));if(kind==='textarea')el.value=value??'';else el.value=value??'';el.addEventListener(kind==='select'?'change':'input',()=>change(el.value));return el}
-function jsonField(parent,id,label,key,help){add(parent,'p',help,'muted text-sm mb-2');const el=field(parent,id,label,JSON.stringify(draft[key]||[],null,2),v=>{try{const parsed=JSON.parse(v);if(!Array.isArray(parsed))throw Error();draft[key]=parsed;el.setCustomValidity('');$('json-error').textContent='';markDirty()}catch{el.setCustomValidity('JSON invalide');$('json-error').textContent='Le JSON de « '+label+' » est invalide : corrigez-le avant d’enregistrer.'}},'textarea');el.classList.add('json-field');el.style.minHeight='270px';return el}
 function exampleButton(parent,key){parent.append(button('Insérer un exemple',()=>{if(!confirmExample(key))return;draft[key]=clone(example[key]||[]);renderEditor();markDirty()},'btn mt-3'))}
 function confirmExample(key){if(list(draft[key]).length){message('Cette section contient déjà des éléments. Effacez-la avant d’insérer un exemple.');return false}return true}
 function renderEditor(){if(!draft)return;editorSection=Math.max(0,Math.min(sections.length-1,editorSection));draft.editorSection=editorSection;const tabs=$('editor-tabs');tabs.replaceChildren();sections.forEach((name,i)=>{const b=button(name,()=>switchSection(i),'tab');b.setAttribute('aria-current',String(i===editorSection));tabs.append(b)});
  const host=$('editor-pane');host.replaceChildren();add(host,'p','ATELIER / '+String(editorSection+1).padStart(2,'0'),'eyebrow mb-3');add(host,'h2',sections[editorSection],'mb-4');
- const hint=add(host,'p','Les identifiants relient personnages, lieux, indices et chapitres. Conservez-les lors des modifications.','muted text-sm mb-5');
  function text(id,label,key,multi=false){return field(host,id,label,draft[key]||'',v=>{draft[key]=v;markDirty()},multi?'textarea':'input')}
- function arr(key,label,help){jsonField(host,'edit-'+key,label,key,help);if(example[key])exampleButton(host,key)}
  if(editorSection===0){text('e-title','Titre','title');const cats=['Meurtre en huis clos','Cambriolage','Enlèvement fictif','Disparition','Cold case','Autre affaire fictive'];field(host,'e-category','Catégorie',draft.category,v=>{draft.category=v;markDirty()},'select',cats);field(host,'e-difficulty','Difficulté',draft.difficulty,v=>{draft.difficulty=v;markDirty()},'select',['Débutant','Intermédiaire','Avancé']);text('e-duration','Durée estimée','duration');text('e-synopsis','Synopsis','synopsis',true);text('e-warning','Avertissement non graphique','warning')}
- if(editorSection===1){text('e-prologue','Prologue','prologue',true);arr('chapters','Chapitres et scènes — JSON','Tableau de chapitres : {id, title, scenes:[{id,title,text}]}. Ajoutez autant de scènes que nécessaire.')}
- if(editorSection===2){itemEditor(host,'characters','p','personnage',characterFields,()=>({name:'',role:'',portrait:'',image:'',relations:[],secrets:'',alibi:'',contradictions:'',dialogues:[]}));if(example.characters)exampleButton(host,'characters');reuseButton(host,'characters','personnage')}
- if(editorSection===3){itemEditor(host,'locations','l','décor',locationFields,()=>({name:'',description:'',image:'',views:{general:'',detail:'',alternate:''},access:'',points:[],clues:[],caption:'',credit:'',alt:''}));if(example.locations)exampleButton(host,'locations');reuseButton(host,'locations','décor')}
- if(editorSection===4)arr('timeline','Événements — JSON','Tableau : {id,date,time,location:id, event,people:[id],confirmed,uncertain,unlock:idIndice}.')
- if(editorSection===5)arr('evidence','Indices et preuves — JSON','Tableau : {id,title,type,description,location:id,chapter:id,character:id,reliability,status,red_herring,links:[id],analysis}.')
- if(editorSection===6)arr('interviews','Interrogatoires — JSON','Tableau : {id,character:id,questions:[{question,answer,choices:[texte],consequences,clue:id}]}.')
- if(editorSection===7){arr('hypotheses','Hypothèses — JSON','Tableau : {id,title,clues:[id],reasoning,status}. Reliez plusieurs preuves pour rendre la solution déductible.');text('e-motive','Mobile','motive',true)}
- if(editorSection===8){add(host,'p','La solution est destinée au dénouement du joueur. Utilisez les identifiants des autres sections.','muted mb-3');const sol=add(host,'div',undefined,'grid md:grid-cols-2 gap-4');[['who','Personnage responsable — identifiant'],['place','Lieu — identifiant'],['time','Horaire déterminant']].forEach(([key,label])=>field(sol,'solution-'+key,label,draft.solution?.[key]||'',v=>{draft.solution[key]=v;markDirty()}));field(host,'solution-proof','Indices décisifs — identifiants séparés par des virgules',list(draft.solution?.proof).join(', '),v=>{draft.solution.proof=v.split(',').map(x=>x.trim()).filter(Boolean);markDirty()});arr('reveal','Révélation — JSON','Tableau de paragraphes de conclusion, sans description graphique.');text('e-verdict','Jugement fictif','verdict',true)}
+ if(editorSection===1){text('e-prologue','Prologue','prologue',true);add(host,'h3','Chapitres','mt-6 mb-3');itemEditor(host,'chapters')}
+ if(editorSection===2)itemEditor(host,'characters')
+ if(editorSection===3)itemEditor(host,'locations')
+ if(editorSection===4)itemEditor(host,'timeline')
+ if(editorSection===5)itemEditor(host,'evidence')
+ if(editorSection===6)itemEditor(host,'interviews')
+ if(editorSection===7){itemEditor(host,'hypotheses');add(host,'div',undefined,'mt-6');text('e-motive','Mobile','motive',true)}
+ if(editorSection===8){add(host,'p','La solution est destinée au dénouement du joueur.','muted mb-3');if(!draft.solution)draft.solution={who:'',place:'',time:'',proof:[]};const sol=add(host,'div',undefined,'grid md:grid-cols-2 gap-4 mb-5');[{k:'who',label:'Personnage responsable',type:'ref',src:'characters'},{k:'place',label:'Lieu déterminant',type:'ref',src:'locations'},{k:'time',label:'Horaire déterminant'},{k:'proof',label:'Indices décisifs (au moins deux)',type:'refs',src:'evidence'}].forEach(f=>renderField(sol,'solution',f,draft.solution,()=>{}));field(host,'e-reveal','Révélation — séparez les paragraphes par une ligne vide',list(draft.reveal).join('\n\n'),v=>{draft.reveal=v.split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean);markDirty()},'textarea');text('e-verdict','Jugement fictif','verdict',true)}
  if(editorSection===9){field(host,'e-status','Statut',draft.status,v=>{draft.status=v;markDirty()},'select',['Brouillon','Aperçu','Publiée','Archivée']);text('e-series','Nom de la série','seriesName');text('e-season','Saison','season');field(host,'e-episode','Ordre dans la saison',draft.episodeOrder,v=>{draft.episodeOrder=Math.max(1,Number(v)||1);markDirty()});text('e-private','Notes privées de l’auteur','privateNotes',true);add(host,'p','Les notes privées ne sont pas affichées au joueur. L’export JSON complet les inclut : relisez le fichier avant de le partager.','muted text-sm mt-3');const actions=add(host,'div',undefined,'flex flex-wrap gap-2 mt-6');actions.append(button('Exporter JSON',()=>exportCase(draft),'btn'));actions.append(button('Historique des versions',showVersions,'btn'));if(draft.status==='Publiée'&&checks(draft).some(x=>!x[1]))add(host,'p','Attention : certains éléments de la liste de vérification manquent encore. Le brouillon reste enregistrable.','text-[#e0bf67] mt-4')}
  add(host,'p',undefined,'text-[#e0bf67] mt-4 hidden').id='json-error';updateChecklist()}
-const characterFields=[
- {k:'name',label:'Nom'},
- {k:'role',label:'Rôle',hint:'Ex. : Victime, Suspect · galeriste rival, Témoin, Enquêteur…',suggest:['Victime','Suspect','Suspecte','Témoin','Enquêteur','Enquêtrice','Personnage secondaire']},
- {k:'image',label:'Portrait (image)',type:'image',shape:'portrait'},
- {k:'portrait',label:'Description physique',type:'textarea'},
- {k:'alibi',label:'Alibi',type:'textarea'},
- {k:'secrets',label:'Secrets',type:'textarea'},
- {k:'contradictions',label:'Contradictions',type:'textarea'},
- {k:'relations',label:'Relations — identifiants d’autres personnages, séparés par des virgules',type:'csv'},
- {k:'dialogues',label:'Répliques — une par ligne',type:'lines'}
-];
-const locationFields=[
- {k:'name',label:'Nom du décor'},
- {k:'image',label:'Photo ou illustration',type:'image'},
- {k:'description',label:'Description',type:'textarea'},
- {k:'access',label:'Accès'},
- {k:'views.general',label:'Vue générale'},
- {k:'views.detail',label:'Détail remarquable'},
- {k:'views.alternate',label:'Autre ambiance (nuit, pluie…)'},
- {k:'points',label:'Éléments à examiner — une ligne par élément : « Libellé = identifiant de l’indice »',type:'points'},
- {k:'caption',label:'Légende de l’image'},
- {k:'credit',label:'Crédit de l’image'},
- {k:'alt',label:'Texte alternatif (description de l’image pour l’accessibilité)'}
-];
+const openCards=new Set();
+const refLabel=x=>x.id+' · '+(x.name||x.title||'sans nom');
+const evidenceTypes=['Document','Message','Témoignage','Déclaration','Objet','Trace','Photo','Facture','Chronologie'];
+const sceneCfg={prefix:'s',one:'scène',fem:true,title:x=>x.title,blank:()=>({title:'',text:''}),fields:[
+ {k:'title',label:'Titre de la scène'},
+ {k:'text',label:'Texte',type:'textarea',tall:true}]};
+const questionCfg={prefix:'q',one:'question',fem:true,title:x=>x.question,blank:()=>({question:'',answer:'',choices:[],consequences:'',clue:''}),fields:[
+ {k:'question',label:'Question posée'},
+ {k:'clue',label:'Indice révélé par la réponse',type:'ref',src:'evidence'},
+ {k:'answer',label:'Réponse',type:'textarea'},
+ {k:'consequences',label:'Conséquence',type:'textarea'},
+ {k:'choices',label:'Pistes proposées au joueur — une par ligne',type:'lines'}]};
+const editors={
+ chapters:{prefix:'c',one:'chapitre',title:x=>x.title,sub:x=>list(x.scenes).length+' scène(s)',blank:()=>({title:'',scenes:[]}),fields:[
+  {k:'title',label:'Titre du chapitre'},
+  {k:'scenes',label:'Scènes',type:'items',cfg:sceneCfg}]},
+ characters:{prefix:'p',one:'personnage',title:x=>x.name,sub:x=>x.role,blank:()=>({name:'',role:'',portrait:'',image:'',relations:[],secrets:'',alibi:'',contradictions:'',dialogues:[]}),fields:[
+  {k:'name',label:'Nom'},
+  {k:'role',label:'Rôle',hint:'Ex. : Victime, Suspect · galeriste rival, Témoin, Enquêteur…',suggest:['Victime','Suspect','Suspecte','Témoin','Enquêteur','Enquêtrice','Personnage secondaire']},
+  {k:'image',label:'Portrait (image)',type:'image',shape:'portrait'},
+  {k:'portrait',label:'Description physique',type:'textarea'},
+  {k:'alibi',label:'Alibi',type:'textarea'},
+  {k:'secrets',label:'Secrets',type:'textarea'},
+  {k:'contradictions',label:'Contradictions',type:'textarea'},
+  {k:'relations',label:'Relations avec d’autres personnages',type:'refs',src:'characters'},
+  {k:'dialogues',label:'Répliques — une par ligne',type:'lines'}]},
+ locations:{prefix:'l',one:'décor',title:x=>x.name,blank:()=>({name:'',description:'',image:'',views:{general:'',detail:'',alternate:''},access:'',points:[],clues:[],caption:'',credit:'',alt:''}),fields:[
+  {k:'name',label:'Nom du décor'},
+  {k:'image',label:'Photo ou illustration',type:'image'},
+  {k:'description',label:'Description',type:'textarea'},
+  {k:'access',label:'Accès'},
+  {k:'views.general',label:'Vue générale'},
+  {k:'views.detail',label:'Détail remarquable'},
+  {k:'views.alternate',label:'Autre ambiance (nuit, pluie…)'},
+  {k:'points',label:'Éléments à examiner — une ligne par élément : « Libellé = identifiant de l’indice »',type:'points'},
+  {k:'caption',label:'Légende de l’image'},
+  {k:'credit',label:'Crédit de l’image'},
+  {k:'alt',label:'Texte alternatif (description de l’image pour l’accessibilité)'}]},
+ timeline:{prefix:'t',one:'événement',title:x=>[x.time,x.event].filter(Boolean).join(' · '),blank:()=>({date:'',time:'',location:'',event:'',people:[],confirmed:'',uncertain:'',unlock:''}),fields:[
+  {k:'date',label:'Date'},
+  {k:'time',label:'Heure',hint:'Ex. : 20 h 14'},
+  {k:'event',label:'Ce qui se passe',type:'textarea'},
+  {k:'location',label:'Lieu',type:'ref',src:'locations'},
+  {k:'unlock',label:'Visible seulement après avoir trouvé l’indice',type:'ref',src:'evidence'},
+  {k:'people',label:'Personnes présentes',type:'refs',src:'characters'},
+  {k:'confirmed',label:'Ce qui est confirmé (source)'},
+  {k:'uncertain',label:'Ce qui reste incertain'}]},
+ evidence:{prefix:'i',one:'indice',title:x=>x.title,sub:x=>x.red_herring?'fausse piste':x.type,blank:()=>({title:'',type:'',description:'',location:'',chapter:'',character:'',reliability:'',status:'À analyser',red_herring:false,links:[],analysis:''}),fields:[
+  {k:'title',label:'Nom de l’indice'},
+  {k:'type',label:'Type',suggest:evidenceTypes},
+  {k:'description',label:'Description',type:'textarea'},
+  {k:'location',label:'Trouvé dans le décor',type:'ref',src:'locations'},
+  {k:'character',label:'Personnage concerné',type:'ref',src:'characters'},
+  {k:'chapter',label:'Chapitre',type:'ref',src:'chapters'},
+  {k:'reliability',label:'Fiabilité',suggest:['Faible','Moyenne','Élevée']},
+  {k:'status',label:'Statut',suggest:['À analyser','À vérifier','Analysé']},
+  {k:'red_herring',label:'C’est une fausse piste',type:'check'},
+  {k:'analysis',label:'Analyse (montrée quand le joueur analyse la pièce)',type:'textarea'},
+  {k:'links',label:'Indices liés',type:'refs',src:'evidence'}]},
+ interviews:{prefix:'q',one:'interrogatoire',title:x=>x.character?personNameDraft(x.character):'',sub:x=>list(x.questions).length+' question(s)',blank:()=>({character:'',questions:[]}),fields:[
+  {k:'character',label:'Personnage interrogé',type:'ref',src:'characters'},
+  {k:'questions',label:'Questions',type:'items',cfg:questionCfg}]},
+ hypotheses:{prefix:'h',one:'hypothèse',fem:true,title:x=>x.title,sub:x=>x.status,blank:()=>({title:'',clues:[],reasoning:'',status:'À vérifier'}),fields:[
+  {k:'title',label:'Hypothèse'},
+  {k:'status',label:'Statut',suggest:['À vérifier','Étudiée','Écartée']},
+  {k:'reasoning',label:'Raisonnement',type:'textarea'},
+  {k:'clues',label:'Indices qui la soutiennent',type:'refs',src:'evidence'}]}
+};
+function personNameDraft(id){return list(draft.characters).find(x=>x.id===id)?.name||id}
 const getPath=(o,path)=>path.split('.').reduce((v,k)=>v?.[k],o);
 function setPath(o,path,value){const keys=path.split('.'),last=keys.pop();let t=o;keys.forEach(k=>{if(!t[k]||typeof t[k]!=='object')t[k]={};t=t[k]});t[last]=value}
 function nextId(prefix,items){let n=items.length+1;while(items.some(x=>x.id===prefix+n))n++;return prefix+n}
-function fieldValue(f,item){const v=getPath(item,f.k);if(f.type==='csv')return list(v).join(', ');if(f.type==='lines')return list(v).join('\n');if(f.type==='points')return list(v).map(p=>(p.label||'')+(p.clue?' = '+p.clue:'')).join('\n');return v??''}
-function parseValue(f,v){if(f.type==='csv')return v.split(',').map(x=>x.trim()).filter(Boolean);if(f.type==='lines')return v.split('\n').map(x=>x.trim()).filter(Boolean);if(f.type==='points')return v.split('\n').map(x=>x.trim()).filter(Boolean).map(line=>{const [label,clue='']=line.split('=').map(x=>x.trim());return {label,clue,x:50,y:50}});return v}
+function fieldValue(f,item){const v=getPath(item,f.k);if(f.type==='lines')return list(v).join('\n');if(f.type==='points')return list(v).map(p=>(p.label||'')+(p.clue?' = '+p.clue:'')).join('\n');return v??''}
+function parseValue(f,v){if(f.type==='lines')return v.split('\n').map(x=>x.trim()).filter(Boolean);if(f.type==='points')return v.split('\n').map(x=>x.trim()).filter(Boolean).map(line=>{const [label,clue='']=line.split('=').map(x=>x.trim());return {label,clue,x:50,y:50}});return v}
 async function uploadImage(file){const data=new FormData();data.append('image',file);const r=await fetch('/api/images',{method:'POST',body:data});const body=await r.json().catch(()=>({}));if(!r.ok)throw Error(body.error||'Envoi impossible');return body.url}
 function imageInput(parent,id,f,item){const wrap=add(parent,'div',undefined,'md:col-span-2');const lab=add(wrap,'label',f.label);lab.htmlFor=id;const preview=add(wrap,'img',undefined,(f.shape==='portrait'?'portrait-img':'decor-img')+' mb-3'+(item.image?'':' hidden'));preview.alt='';if(item.image)preview.src=item.image;const row=add(wrap,'div',undefined,'flex flex-wrap gap-2');const url=add(row,'input',undefined,'field flex-1');url.id=id;url.placeholder='Collez l’adresse d’une image (https://…) ou envoyez un fichier';url.value=item.image||'';url.style.minWidth='220px';const setImage=v=>{item.image=v;url.value=v;preview.src=v;preview.classList.toggle('hidden',!v);markDirty()};url.addEventListener('input',()=>setImage(url.value.trim()));const picker=add(row,'input');picker.type='file';picker.accept='image/*';picker.className='hidden';row.append(button('Envoyer une image',()=>picker.click()));row.append(button('Retirer l’image',()=>setImage('')));picker.addEventListener('change',async()=>{const file=picker.files[0];if(!file)return;try{message('Envoi de l’image…');setImage(await uploadImage(file));message('Image ajoutée. Pensez à enregistrer l’enquête.')}catch(e){message('Image non envoyée : '+e.message)}finally{picker.value=''}})}
-function itemEditor(host,key,prefix,singular,fields,blank){if(!Array.isArray(draft[key]))draft[key]=[];const items=draft[key];
- add(host,'p',items.length?items.length+' '+singular+(items.length>1?'s':'')+' dans ce dossier.':'Aucun '+singular+' pour l’instant. Ajoutez-en un ci-dessous.','muted mb-4');
- items.forEach((item,i)=>{const card=add(host,'details',undefined,'panel p-4 mb-3');card.open=i===items.length-1;const head=add(card,'summary',undefined,'cursor-pointer flex flex-wrap items-center gap-3');add(head,'span',item.id||'?','badge');const title=add(head,'strong',item.name||'(sans nom)');if(item.role)add(head,'span',item.role,'muted text-sm');
-  const grid=add(card,'div',undefined,'grid md:grid-cols-2 gap-4 mt-4');
-  fields.forEach(f=>{const id=`${key}-${i}-${f.k.replace('.','-')}`;if(f.type==='image')return imageInput(grid,id,f,item);const multi=['textarea','lines','points'].includes(f.type);const wrap=add(grid,'div',undefined,multi?'md:col-span-2':'');const lab=add(wrap,'label',f.label);lab.htmlFor=id;const el=add(wrap,multi?'textarea':'input',undefined,'field');el.id=id;if(multi)el.style.minHeight='96px';el.value=fieldValue(f,item);if(f.hint)el.placeholder=f.hint;if(f.suggest){const dl=add(wrap,'datalist');dl.id=id+'-list';f.suggest.forEach(s=>dl.append(new Option(s)));el.setAttribute('list',dl.id)}el.addEventListener('input',()=>{setPath(item,f.k,parseValue(f,el.value));if(f.type==='points')item.clues=list(item.points).map(p=>p.clue).filter(Boolean);if(f.k==='name')title.textContent=el.value||'(sans nom)';markDirty()})});
+// Liste déroulante (un seul élément) ou cases à cocher (plusieurs) vers une autre section
+function refInput(parent,id,f,item,onChange){const source=list(draft[f.src]).filter(x=>x!==item);const wrap=add(parent,'div',undefined,f.type==='refs'?'md:col-span-2':'');const lab=add(wrap,f.type==='refs'?'p':'label',f.label,'font-semibold mb-2');
+ if(!source.length){add(wrap,'p','Rien à choisir pour l’instant : remplissez d’abord l’onglet « '+sections[{characters:2,locations:3,evidence:5,chapters:1}[f.src]]+' ».','muted text-sm');return}
+ if(f.type==='ref'){lab.htmlFor=id;const el=add(wrap,'select',undefined,'field');el.id=id;el.append(new Option('— Aucun —',''));source.forEach(x=>el.append(new Option(refLabel(x),x.id)));el.value=getPath(item,f.k)||'';el.addEventListener('change',()=>{setPath(item,f.k,el.value);onChange()});return}
+ const box=add(wrap,'div',undefined,'flex flex-wrap gap-x-5 gap-y-2');source.forEach(x=>{const opt=add(box,'label',undefined,'flex items-center gap-2 font-normal m-0');const cb=add(opt,'input');cb.type='checkbox';cb.checked=list(getPath(item,f.k)).includes(x.id);add(opt,'span',refLabel(x));cb.addEventListener('change',()=>{const ids=list(getPath(item,f.k)).filter(v=>v!==x.id);if(cb.checked)ids.push(x.id);setPath(item,f.k,ids);onChange()})})}
+function renderField(grid,dom,f,item,refresh){const id=dom+'-'+f.k.replace('.','-');
+ if(f.type==='image')return imageInput(grid,id,f,item);
+ if(f.type==='ref'||f.type==='refs')return refInput(grid,id,f,item,()=>{refresh();markDirty()});
+ if(f.type==='items'){if(!Array.isArray(item[f.k]))item[f.k]=[];const box=add(grid,'div',undefined,'md:col-span-2 border-l-2 border-[#ab3442] pl-4');add(box,'p',f.label,'eyebrow mb-3');return listEditor(box,item[f.k],id,f.cfg)}
+ if(f.type==='check'){const wrap=add(grid,'label',undefined,'flex items-center gap-2 md:col-span-2');const cb=add(wrap,'input');cb.type='checkbox';cb.id=id;cb.checked=!!getPath(item,f.k);add(wrap,'span',f.label);cb.addEventListener('change',()=>{setPath(item,f.k,cb.checked);refresh();markDirty()});return}
+ const multi=['textarea','lines','points'].includes(f.type);const wrap=add(grid,'div',undefined,multi?'md:col-span-2':'');const lab=add(wrap,'label',f.label);lab.htmlFor=id;const el=add(wrap,multi?'textarea':'input',undefined,'field');el.id=id;if(multi)el.style.minHeight=f.tall?'200px':'96px';el.value=fieldValue(f,item);if(f.hint)el.placeholder=f.hint;if(f.suggest){const dl=add(wrap,'datalist');dl.id=id+'-list';f.suggest.forEach(s=>dl.append(new Option(s)));el.setAttribute('list',dl.id)}el.addEventListener('input',()=>{setPath(item,f.k,parseValue(f,el.value));if(f.type==='points')item.clues=list(item.points).map(p=>p.clue).filter(Boolean);refresh();markDirty()})}
+// Liste d'éléments avec Ajouter / Modifier / Supprimer / Monter
+function listEditor(host,items,dom,cfg){const one=cfg.one,un=cfg.fem?'une':'un',ce=cfg.fem?'cette':'ce';
+ add(host,'p',items.length?items.length+' '+one+(items.length>1?'s':'')+'.':'Aucun'+(cfg.fem?'e ':' ')+one+' pour l’instant.','muted text-sm mb-3');
+ items.forEach((item,i)=>{const cardId=dom+'-'+i;const card=add(host,'details',undefined,'panel p-4 mb-3');card.open=openCards.has(cardId)||items.length===1;card.addEventListener('toggle',()=>card.open?openCards.add(cardId):openCards.delete(cardId));
+  const head=add(card,'summary',undefined,'cursor-pointer flex flex-wrap items-center gap-3');add(head,'span',item.id||String(i+1),'badge');const title=add(head,'strong');const sub=add(head,'span',undefined,'muted text-sm');
+  const refresh=()=>{title.textContent=cfg.title(item)||'(à compléter)';sub.textContent=cfg.sub?.(item)||''};refresh();
+  const grid=add(card,'div',undefined,'grid md:grid-cols-2 gap-4 mt-4');cfg.fields.forEach(f=>renderField(grid,cardId,f,item,refresh));
   const tools=add(card,'div',undefined,'flex flex-wrap gap-2 mt-4');
-  if(i>0)tools.append(button('↑ Monter',()=>{items.splice(i-1,0,items.splice(i,1)[0]);renderEditor();markDirty()}));
-  tools.append(button('Supprimer ce '+singular,()=>askConfirm('Supprimer « '+(item.name||item.id)+' » ?','Les autres sections qui utilisent l’identifiant '+item.id+' devront être corrigées.',()=>{items.splice(i,1);renderEditor();markDirty()}),'btn danger'))});
- host.append(button('＋ Ajouter un '+singular,()=>{const item={id:nextId(prefix,items),...blank()};items.push(item);renderEditor();markDirty();setTimeout(()=>$(`${key}-${items.length-1}-name`)?.focus(),0)},'btn primary mt-2'));
- add(host,'p','L’identifiant (badge) relie ce '+singular+' aux chronologies, indices et interrogatoires.','muted text-sm mt-3')}
+  if(i>0)tools.append(button('↑ Monter',()=>{items.splice(i-1,0,items.splice(i,1)[0]);openCards.delete(cardId);openCards.add(dom+'-'+(i-1));renderEditor();markDirty()}));
+  tools.append(button('Supprimer '+ce+' '+one,()=>askConfirm('Supprimer « '+(cfg.title(item)||item.id||one)+' » ?','Les éléments qui y font référence devront être corrigés.',()=>{items.splice(i,1);openCards.clear();renderEditor();markDirty()}),'btn danger'))});
+ host.append(button('＋ Ajouter '+un+' '+one,()=>{items.push({id:nextId(cfg.prefix,items),...cfg.blank()});const cardId=dom+'-'+(items.length-1);openCards.add(cardId);renderEditor();markDirty();setTimeout(()=>$(cardId+'-'+cfg.fields[0].k.replace('.','-'))?.focus(),0)},'btn primary'))}
+function itemEditor(host,key){if(!Array.isArray(draft[key]))draft[key]=[];listEditor(host,draft[key],key,editors[key]);if(example[key])exampleButton(host,key);if(key==='characters'||key==='locations')reuseButton(host,key,editors[key].one)}
 function reuseButton(host,key,singular){const sources=records.filter(r=>r.type==='case'&&r.__backendId!==editingId);if(!sources.length)return;const box=add(host,'div',undefined,'border-t border-[#393736] mt-7 pt-5');add(box,'h3','Réutiliser une copie','mb-2');add(box,'p','La source restera indépendante.','muted text-sm mb-3');const select=field(box,'reuse-source','Enquête source','',()=>{},'select',[]);select.append(new Option('Choisir une enquête',''));sources.forEach(r=>select.append(new Option(r.title||'Sans titre',r.__backendId)));box.append(button('Copier un '+singular,()=>{const source=records.find(r=>r.__backendId===select.value);if(!source)return message('Choisissez une enquête source.');const items=list(unpack(source)[key]);if(!items.length)return message('Aucun élément à copier dans cette enquête.');const picker=add(box,'select',undefined,'field mt-3');picker.setAttribute('aria-label','Élément à copier');items.forEach((item,i)=>picker.append(new Option(item.name||item.title||('Élément '+(i+1)),String(i))));const act=button('Ajouter la copie sélectionnée',()=>{const copy=clone(items[Number(picker.value)]);const old=copy.id||key;copy.id=old+'-copie-'+Date.now().toString(36);draft[key].push(copy);renderEditor();markDirty();message('Copie indépendante ajoutée. Vérifiez ses relations et identifiants.')},'btn mt-2');box.append(act)},'btn'))}
 function switchSection(i){if($('editor-form').querySelector(':invalid')){message('Corrigez le champ JSON invalide avant de changer de section.');return}editorSection=i;draft.editorSection=i;renderEditor();markDirty()}
 function edit(c,id=null){clearTimeout(autoTimer);draft=clone(c);editingId=id;editorSection=draft.editorSection||0;dirty=false;revision=0;savedRevision=0;saveIndicator(id?'Enregistré à l’instant':'Nouvelle enquête · à enregistrer');renderEditor();show('editor');if(!id){dirty=true;revision++;saveIndicator('Nouvelle enquête · modifications non enregistrées')}}
